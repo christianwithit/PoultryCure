@@ -34,3 +34,50 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
+
+// Authentication and User Management Types
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  profilePhoto?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SignupData {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface SessionData {
+  userId: string;
+  token: string;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
+export interface AuthResult {
+  success: boolean;
+  user?: User;
+  error?: string;
+  token?: string;
+}
+
+export interface EncryptedCredentials {
+  hashedPassword: string;
+  salt: string;
+}
+
+export interface UserProfile extends User {
+  hashedPassword: string;
+  salt: string;
+  lastLoginAt?: Date;
+}
