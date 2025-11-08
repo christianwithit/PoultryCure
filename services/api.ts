@@ -1,15 +1,24 @@
 // services/api.ts
+import Constants from 'expo-constants';
 import { matchDisease } from '../data/disease';
 import { ApiResponse, DiagnosisResult } from '../types/types';
 
 // API key validation and security
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+// Use Constants.expoConfig.extra for production builds, fallback to process.env for development
+const GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
-// Only log API key status in development
-if (__DEV__) {
-  console.log('API Key loaded:', GEMINI_API_KEY ? 'YES' : 'NO');
-  console.log('First 10 chars:', GEMINI_API_KEY?.substring(0, 10));
+// Log API key status (safe for production - doesn't expose key)
+console.log('=== API KEY DEBUG ===');
+console.log('Constants.expoConfig exists:', !!Constants.expoConfig);
+console.log('Constants.expoConfig.extra exists:', !!Constants.expoConfig?.extra);
+console.log('geminiApiKey from extra:', Constants.expoConfig?.extra?.geminiApiKey ? 'FOUND' : 'NOT FOUND');
+console.log('process.env key:', process.env.EXPO_PUBLIC_GEMINI_API_KEY ? 'FOUND' : 'NOT FOUND');
+console.log('Final GEMINI_API_KEY:', GEMINI_API_KEY ? 'YES' : 'NO');
+if (GEMINI_API_KEY) {
+  console.log('First 10 chars:', GEMINI_API_KEY.substring(0, 10));
+  console.log('Key length:', GEMINI_API_KEY.length);
 }
+console.log('===================');
 
 // Validate API key format
 if (GEMINI_API_KEY && !GEMINI_API_KEY.startsWith('AIza')) {

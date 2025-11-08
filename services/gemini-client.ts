@@ -1,5 +1,6 @@
 // services/gemini-client.ts
 import { GenerationConfig, GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
+import Constants from 'expo-constants';
 import { DiseaseInfo } from '../types/types';
 
 export interface GeminiConfig {
@@ -43,8 +44,11 @@ export class GeminiClient {
 
   constructor(config?: Partial<GeminiConfig>) {
     // Load configuration from environment variables with defaults
+    // Use Constants.expoConfig.extra for production builds, fallback to process.env for development
+    const apiKey = Constants.expoConfig?.extra?.geminiApiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
+    
     this.config = {
-      apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY || '',
+      apiKey,
       model: (process.env.EXPO_PUBLIC_GEMINI_MODEL as 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'gemini-2.0-flash' | 'gemini-flash-latest' | 'gemini-pro-latest') || 'gemini-2.5-flash',
       maxTokens: parseInt(process.env.EXPO_PUBLIC_GEMINI_MAX_TOKENS || '2048'),
       temperature: 0.7,
