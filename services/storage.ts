@@ -1,14 +1,14 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
-import { EncryptedCredentials, SessionData, User } from '../types/types';
-import { EncryptionUtils } from '../utils/encryption';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
+import { EncryptedCredentials, SessionData, User } from "../types/types";
+import { EncryptionUtils } from "../utils/encryption";
 
 export class StorageManager {
   private static readonly STORAGE_KEYS = {
-    USER_DATA: 'user_data',
-    CREDENTIALS: 'user_credentials',
-    SESSION: 'user_session',
-    ENCRYPTION_KEY: 'encryption_key',
+    USER_DATA: "user_data",
+    CREDENTIALS: "user_credentials",
+    SESSION: "user_session",
+    ENCRYPTION_KEY: "encryption_key",
   };
 
   /**
@@ -16,10 +16,15 @@ export class StorageManager {
    */
   private async getEncryptionKey(): Promise<string> {
     try {
-      let key = await SecureStore.getItemAsync(StorageManager.STORAGE_KEYS.ENCRYPTION_KEY);
+      let key = await SecureStore.getItemAsync(
+        StorageManager.STORAGE_KEYS.ENCRYPTION_KEY
+      );
       if (!key) {
         key = EncryptionUtils.generateKey();
-        await SecureStore.setItemAsync(StorageManager.STORAGE_KEYS.ENCRYPTION_KEY, key);
+        await SecureStore.setItemAsync(
+          StorageManager.STORAGE_KEYS.ENCRYPTION_KEY,
+          key
+        );
       }
       return key;
     } catch (error) {
@@ -28,45 +33,45 @@ export class StorageManager {
   }
 
   /**
-   * Stores user data securely with encryption
+   * Stores user data securely
    */
   async storeUser(user: User): Promise<void> {
     try {
-      const key = await this.getEncryptionKey();
       const userData = JSON.stringify({
         ...user,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
       });
-      const encryptedData = await EncryptionUtils.encrypt(userData, key);
-      await AsyncStorage.setItem(StorageManager.STORAGE_KEYS.USER_DATA, encryptedData);
+      await AsyncStorage.setItem(
+        StorageManager.STORAGE_KEYS.USER_DATA,
+        userData
+      );
     } catch (error) {
       throw new Error(`Failed to store user data: ${error}`);
     }
   }
 
   /**
-   * Retrieves user data and decrypts it
+   * Retrieves user data
    */
   async getUser(): Promise<User | null> {
     try {
-      const encryptedData = await AsyncStorage.getItem(StorageManager.STORAGE_KEYS.USER_DATA);
-      if (!encryptedData) {
+      const userData = await AsyncStorage.getItem(
+        StorageManager.STORAGE_KEYS.USER_DATA
+      );
+      if (!userData) {
         return null;
       }
 
-      const key = await this.getEncryptionKey();
-      const decryptedData = await EncryptionUtils.decrypt(encryptedData, key);
-      const userData = JSON.parse(decryptedData);
-      
+      const parsedData = JSON.parse(userData);
+
       return {
-        ...userData,
-        createdAt: new Date(userData.createdAt),
-        updatedAt: new Date(userData.updatedAt),
+        ...parsedData,
+        createdAt: new Date(parsedData.createdAt),
+        updatedAt: new Date(parsedData.updatedAt),
       };
     } catch (error) {
-      // If decryption fails, return null (data might be corrupted)
-      console.warn('Failed to retrieve user data:', error);
+      console.warn("Failed to retrieve user data:", error);
       return null;
     }
   }
@@ -77,7 +82,10 @@ export class StorageManager {
   async storeCredentials(credentials: EncryptedCredentials): Promise<void> {
     try {
       const credentialsData = JSON.stringify(credentials);
-      await SecureStore.setItemAsync(StorageManager.STORAGE_KEYS.CREDENTIALS, credentialsData);
+      await SecureStore.setItemAsync(
+        StorageManager.STORAGE_KEYS.CREDENTIALS,
+        credentialsData
+      );
     } catch (error) {
       throw new Error(`Failed to store credentials: ${error}`);
     }
@@ -88,62 +96,100 @@ export class StorageManager {
    */
   async getCredentials(): Promise<EncryptedCredentials | null> {
     try {
-      const credentialsData = await SecureStore.getItemAsync(StorageManager.STORAGE_KEYS.CREDENTIALS);
+      const credentialsData = await SecureStore.getItemAsync(
+        StorageManager.STORAGE_KEYS.CREDENTIALS
+      );
       if (!credentialsData) {
         return null;
       }
       return JSON.parse(credentialsData);
     } catch (error) {
-      console.warn('Failed to retrieve credentials:', error);
+      console.warn("Failed to retrieve credentials:", error);
       return null;
     }
   }
 
   /**
-   * Stores session data with encryption
+   * Stores session data
    */
   async storeSession(sessionData: SessionData): Promise<void> {
     try {
-      const key = await this.getEncryptionKey();
       const sessionJson = JSON.stringify({
         ...sessionData,
         expiresAt: sessionData.expiresAt.toISOString(),
         createdAt: sessionData.createdAt.toISOString(),
       });
-      const encryptedData = await EncryptionUtils.encrypt(sessionJson, key);
-      await AsyncStorage.setItem(StorageManager.STORAGE_KEYS.SESSION, encryptedData);
+      await AsyncStorage.setItem(
+        StorageManager.STORAGE_KEYS.SESSION,
+        sessionJson
+      );
     } catch (error) {
       throw new Error(`Failed to store session data: ${error}`);
     }
   }
 
   /**
-   * Retrieves and decrypts session data
+   * Retrieves session data
    */
   async getSession(): Promise<SessionData | null> {
     try {
-      const encryptedData = await AsyncStorage.getItem(StorageManager.STORAGE_KEYS.SESSION);
-      if (!encryptedData) {
+      const sessionJson = await AsyncStorage.getItem(
+        StorageManager.STORAGE_KEYS.SESSION
+      );
+      if (!sessionJson) {
         return null;
       }
 
-      const key = await this.getEncryptionKey();
-      const decryptedData = await EncryptionUtils.decrypt(encryptedData, key);
-      const sessionData = JSON.parse(decryptedData);
-      
+      const sessionData = JSON.parse(sessionJson);
+
       return {
         ...sessionData,
         expiresAt: new Date(sessionData.expiresAt),
         createdAt: new Date(sessionData.createdAt),
       };
     } catch (error) {
-      console.warn('Failed to retrieve session data:', error);
+      console.warn("Failed to retrieve session data:", error);
       return null;
     }
   }
 
   /**
-   * Clears all user-related data from storage
+   * Clears only the session data (used on logout)
+   */
+  async clearSession(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(StorageManager.STORAGE_KEYS.SESSION);
+    } catch (error) {
+      throw new Error(`Failed to clear session: ${error}`);
+    }
+  }
+
+  /**
+   * Clears only the user data
+   */
+  async clearUser(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(StorageManager.STORAGE_KEYS.USER_DATA);
+    } catch (error) {
+      throw new Error(`Failed to clear user: ${error}`);
+    }
+  }
+
+  /**
+   * Clears only the credentials
+   */
+  async clearCredentials(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(
+        StorageManager.STORAGE_KEYS.CREDENTIALS
+      );
+    } catch (error) {
+      throw new Error(`Failed to clear credentials: ${error}`);
+    }
+  }
+
+  /**
+   * Clears all user-related data from storage (only use for account deletion)
    */
   async clearUserData(): Promise<void> {
     try {
@@ -166,7 +212,7 @@ export class StorageManager {
       if (!session) {
         return false;
       }
-      
+
       // Check if session has expired
       return session.expiresAt > new Date();
     } catch (error) {
@@ -181,7 +227,7 @@ export class StorageManager {
     try {
       const existingUser = await this.getUser();
       if (!existingUser) {
-        throw new Error('No user data found to update');
+        throw new Error("No user data found to update");
       }
 
       const updatedUser: User = {

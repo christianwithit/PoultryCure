@@ -1,6 +1,14 @@
-import { AuthResult, LoginCredentials, SessionData, SignupData, User, UserProfile } from '../types/types';
-import { PasswordUtils } from '../utils/password';
-import { storageManager } from './storage';
+import * as Crypto from "expo-crypto";
+import {
+  AuthResult,
+  LoginCredentials,
+  SessionData,
+  SignupData,
+  User,
+  UserProfile,
+} from "../types/types";
+import { PasswordUtils } from "../utils/password";
+import { storageManager } from "./storage";
 
 export class AuthService {
   private static readonly SESSION_DURATION_HOURS = 24 * 7; // 7 days
@@ -15,7 +23,7 @@ export class AuthService {
       if (!validationResult.isValid) {
         return {
           success: false,
-          error: validationResult.errors.join(', ')
+          error: validationResult.errors.join(", "),
         };
       }
 
@@ -24,12 +32,14 @@ export class AuthService {
       if (existingUser) {
         return {
           success: false,
-          error: 'An account with this email already exists'
+          error: "An account with this email already exists",
         };
       }
 
       // Hash password
-      const { hash, salt } = await PasswordUtils.hashPassword(userData.password);
+      const { hash, salt } = await PasswordUtils.hashPassword(
+        userData.password
+      );
 
       // Create user profile
       const userId = this.generateUserId();
@@ -41,7 +51,7 @@ export class AuthService {
         hashedPassword: hash,
         salt: salt,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       };
 
       // Store user data
@@ -50,13 +60,13 @@ export class AuthService {
         name: userProfile.name,
         email: userProfile.email,
         createdAt: userProfile.createdAt,
-        updatedAt: userProfile.updatedAt
+        updatedAt: userProfile.updatedAt,
       };
 
       await storageManager.storeUser(user);
       await storageManager.storeCredentials({
         hashedPassword: hash,
-        salt: salt
+        salt: salt,
       });
 
       // Create session
@@ -65,12 +75,14 @@ export class AuthService {
       return {
         success: true,
         user: user,
-        token: sessionToken
+        token: sessionToken,
       };
     } catch (error) {
       return {
         success: false,
-        error: `Signup failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        error: `Signup failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
       };
     }
   }
@@ -84,16 +96,19 @@ export class AuthService {
       if (!credentials.email || !credentials.password) {
         return {
           success: false,
-          error: 'Email and password are required'
+          error: "Email and password are required",
         };
       }
 
       // Get stored user data
       const user = await storageManager.getUser();
-      if (!user || user.email.toLowerCase() !== credentials.email.toLowerCase().trim()) {
+      if (
+        !user ||
+        user.email.toLowerCase() !== credentials.email.toLowerCase().trim()
+      ) {
         return {
           success: false,
-          error: 'Invalid email or password'
+          error: "Invalid email or password",
         };
       }
 
@@ -102,7 +117,7 @@ export class AuthService {
       if (!storedCredentials) {
         return {
           success: false,
-          error: 'Invalid email or password'
+          error: "Invalid email or password",
         };
       }
 
@@ -116,14 +131,14 @@ export class AuthService {
       if (!isPasswordValid) {
         return {
           success: false,
-          error: 'Invalid email or password'
+          error: "Invalid email or password",
         };
       }
 
       // Update last login time
       const updatedUser = {
         ...user,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
       await storageManager.storeUser(updatedUser);
 
@@ -133,12 +148,14 @@ export class AuthService {
       return {
         success: true,
         user: updatedUser,
-        token: sessionToken
+        token: sessionToken,
       };
     } catch (error) {
       return {
         success: false,
-        error: `Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        error: `Login failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
       };
     }
   }
@@ -148,9 +165,13 @@ export class AuthService {
    */
   async logout(): Promise<void> {
     try {
-      await storageManager.clearUserData();
+      await storageManager.clearSession();
     } catch (error) {
-      throw new Error(`Logout failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Logout failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
@@ -160,13 +181,15 @@ export class AuthService {
   private async createSession(userId: string): Promise<string> {
     const sessionToken = this.generateSessionToken();
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + AuthService.SESSION_DURATION_HOURS);
+    expiresAt.setHours(
+      expiresAt.getHours() + AuthService.SESSION_DURATION_HOURS
+    );
 
     const sessionData: SessionData = {
       userId,
       token: sessionToken,
       expiresAt,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     await storageManager.storeSession(sessionData);
@@ -185,7 +208,7 @@ export class AuthService {
 
       // Check if session has expired
       if (session.expiresAt <= new Date()) {
-        await storageManager.clearUserData();
+        await storageManager.clearSession();
         return null;
       }
 
@@ -199,39 +222,44 @@ export class AuthService {
    * Destroys the current session
    */
   private async destroySession(): Promise<void> {
-    await storageManager.clearUserData();
+    await storageManager.clearSession();
   }
 
   /**
    * Validates signup data
    */
-  private validateSignupData(userData: SignupData): { isValid: boolean; errors: string[] } {
+  private validateSignupData(userData: SignupData): {
+    isValid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
 
     // Validate name
     if (!userData.name || userData.name.trim().length < 2) {
-      errors.push('Name must be at least 2 characters long');
+      errors.push("Name must be at least 2 characters long");
     }
 
     // Validate email
     if (!userData.email || !this.isValidEmail(userData.email)) {
-      errors.push('Please enter a valid email address');
+      errors.push("Please enter a valid email address");
     }
 
     // Validate password
-    const passwordValidation = PasswordUtils.validatePasswordStrength(userData.password);
+    const passwordValidation = PasswordUtils.validatePasswordStrength(
+      userData.password
+    );
     if (!passwordValidation.isValid) {
       errors.push(...passwordValidation.errors);
     }
 
     // Validate password confirmation
     if (userData.password !== userData.confirmPassword) {
-      errors.push('Passwords do not match');
+      errors.push("Passwords do not match");
     }
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -266,10 +294,15 @@ export class AuthService {
   }
 
   /**
-   * Generates a secure session token
+   * Generates a cryptographically secure session token
    */
   private generateSessionToken(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 16)}`;
+    const bytes = Crypto.getRandomBytes(32);
+    // Convert to hex
+    const hex = Array.from(new Uint8Array(bytes))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return `session_${hex}`;
   }
 
   /**
@@ -279,7 +312,7 @@ export class AuthService {
     try {
       // Validate email format
       if (!email || !this.isValidEmail(email)) {
-        throw new Error('Please enter a valid email address');
+        throw new Error("Please enter a valid email address");
       }
 
       // Check if user exists
@@ -292,51 +325,65 @@ export class AuthService {
 
       // Generate a secure temporary password
       const temporaryPassword = PasswordUtils.generateSecurePassword(12);
-      
+
       // Hash the temporary password
-      const { hash, salt } = await PasswordUtils.hashPassword(temporaryPassword);
+      const { hash, salt } = await PasswordUtils.hashPassword(
+        temporaryPassword
+      );
 
       // Update stored credentials
       await storageManager.storeCredentials({
         hashedPassword: hash,
-        salt: salt
+        salt: salt,
       });
 
       // In a real app, you would send the temporary password via email
       // TODO: Implement email service to send temporary password
-      
-      // Clear any existing sessions for security
-      await this.destroySession();
+
+      // Clear any existing sessions for security (but keep credentials)
+      await storageManager.clearSession();
     } catch (error) {
-      throw new Error(`Password reset failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Password reset failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
   /**
    * Changes user password with current password verification
    */
-  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
     try {
       // Validate inputs
       if (!currentPassword || !newPassword) {
-        throw new Error('Current password and new password are required');
+        throw new Error("Current password and new password are required");
       }
 
       // Validate new password strength
-      const passwordValidation = PasswordUtils.validatePasswordStrength(newPassword);
+      const passwordValidation =
+        PasswordUtils.validatePasswordStrength(newPassword);
       if (!passwordValidation.isValid) {
-        throw new Error(`Password requirements not met: ${passwordValidation.errors.join(', ')}`);
+        throw new Error(
+          `Password requirements not met: ${passwordValidation.errors.join(
+            ", "
+          )}`
+        );
       }
 
       // Get current user and credentials
       const user = await storageManager.getUser();
       if (!user) {
-        throw new Error('No authenticated user found');
+        throw new Error("No authenticated user found");
       }
 
       const storedCredentials = await storageManager.getCredentials();
       if (!storedCredentials) {
-        throw new Error('User credentials not found');
+        throw new Error("User credentials not found");
       }
 
       // Verify current password
@@ -347,7 +394,7 @@ export class AuthService {
       );
 
       if (!isCurrentPasswordValid) {
-        throw new Error('Current password is incorrect');
+        throw new Error("Current password is incorrect");
       }
 
       // Check if new password is different from current
@@ -358,7 +405,7 @@ export class AuthService {
       );
 
       if (isSamePassword) {
-        throw new Error('New password must be different from current password');
+        throw new Error("New password must be different from current password");
       }
 
       // Hash new password
@@ -367,15 +414,19 @@ export class AuthService {
       // Update stored credentials
       await storageManager.storeCredentials({
         hashedPassword: hash,
-        salt: salt
+        salt: salt,
       });
 
       // Update user's updatedAt timestamp
       await storageManager.updateUser({
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
     } catch (error) {
-      throw new Error(`Password change failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Password change failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
