@@ -42,6 +42,57 @@ export class ErrorHandler {
   private static mapErrorByMessage(message: string, originalError: Error): AppError {
     const lowerMessage = message.toLowerCase();
 
+    // Supabase-specific authentication errors
+    if (lowerMessage.includes('invalid login credentials')) {
+      return this.createError(
+        ErrorType.AUTHENTICATION,
+        'Invalid email or password',
+        'Please check your email and password and try again',
+        false,
+        'AUTH_INVALID_CREDENTIALS'
+      );
+    }
+
+    if (lowerMessage.includes('email not confirmed')) {
+      return this.createError(
+        ErrorType.AUTHENTICATION,
+        'Email not verified',
+        'Please verify your email address. Check your inbox for the verification link.',
+        false,
+        'AUTH_EMAIL_NOT_VERIFIED'
+      );
+    }
+
+    if (lowerMessage.includes('user already registered')) {
+      return this.createError(
+        ErrorType.VALIDATION,
+        'Email already in use',
+        'An account with this email already exists. Try logging in instead.',
+        false,
+        'AUTH_EMAIL_EXISTS'
+      );
+    }
+
+    if (lowerMessage.includes('email rate limit exceeded')) {
+      return this.createError(
+        ErrorType.NETWORK,
+        'Too many requests',
+        'Too many requests. Please try again in a few minutes.',
+        true,
+        'AUTH_RATE_LIMIT'
+      );
+    }
+
+    if (lowerMessage.includes('password should be at least')) {
+      return this.createError(
+        ErrorType.VALIDATION,
+        'Password too short',
+        'Password must be at least 6 characters long',
+        false,
+        'AUTH_WEAK_PASSWORD'
+      );
+    }
+
     // Authentication errors
     if (lowerMessage.includes('invalid email or password')) {
       return this.createError(

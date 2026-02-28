@@ -16,7 +16,6 @@ import {
 import { ErrorDisplay } from '../../components/ErrorDisplay';
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SHADOWS, SPACING } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { authService } from '../../services/auth';
 import { AppError, ErrorHandler } from '../../utils/errorHandling';
 import { PasswordUtils } from '../../utils/password';
 
@@ -56,7 +55,7 @@ export default function SignupScreen() {
     return true;
   };
 
-  const validateEmail = async (value: string) => {
+  const validateEmail = (value: string) => {
     if (!value) {
       return 'Email is required';
     }
@@ -64,16 +63,6 @@ export default function SignupScreen() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(value)) {
       return 'Please enter a valid email address';
-    }
-
-    // Check email uniqueness (simulate checking against existing users)
-    try {
-      const existingUser = await authService.getCurrentUser();
-      if (existingUser && existingUser.email.toLowerCase() === value.toLowerCase()) {
-        return 'An account with this email already exists';
-      }
-    } catch (error) {
-      // Continue with validation if check fails
     }
     
     return true;

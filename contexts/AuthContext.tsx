@@ -1,6 +1,7 @@
 import { ErrorHandler, RetryHandler } from '@/utils/errorHandling';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { authService } from '../services/auth';
+import { supabase } from '../lib/supabase';
+import { supabaseAuthService } from '../services/supabase-auth';
 import { User } from '../types/types';
 
 interface AuthContextType {
@@ -19,37 +20,71 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper: convert Supabase user → your app's User shape
+const mapSupabaseUser = (supabaseUser: any): User => ({
+  id: supabaseUser.id,
+  email: supabaseUser.email ?? '',
+  name: supabaseUser.user_metadata?.full_name ?? '',
+  createdAt: supabaseUser.created_at,
+});
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize authentication state on app startup
   useEffect(() => {
-    initializeAuth();
-  }, []);
+    const initializeAuth = async () => {
+      try {
+        setIsLoading(true);
+        const currentUser = await RetryHandler.withRetry(
+          () => supabaseAuthService.getCurrentUser(),
+          2,
+          500
+        );
+        setUser(currentUser);
+      } catch (error) {
+        const appError = ErrorHandler.mapError(error);
+        ErrorHandler.logError(appError, 'AuthContext.initializeAuth');
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const initializeAuth = async () => {
-    try {
-      setIsLoading(true);
-      const currentUser = await RetryHandler.withRetry(
-        () => authService.getCurrentUser(),
-        2, // Max 2 retries for initialization
-        500 // 500ms delay
-      );
-      setUser(currentUser);
-    } catch (error) {
-      const appError = ErrorHandler.mapError(error);
-      ErrorHandler.logError(appError, 'AuthContext.initializeAuth');
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    initializeAuth();
+
+    // Listen to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          try {
+            const currentUser = await supabaseAuthService.getCurrentUser();
+            setUser(currentUser);
+          } catch (error) {
+            console.error('Error fetching user on sign in:', error);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          try {
+            const currentUser = await supabaseAuthService.getCurrentUser();
+            setUser(currentUser);
+          } catch (error) {
+            console.error('Error fetching user on token refresh:', error);
+          }
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
     try {
       setIsLoading(true);
-      const result = await authService.login({ email, password });
+      const result = await supabaseAuthService.login({ email, password });
       
       if (result.success && result.user) {
         setUser(result.user);
@@ -72,7 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signup = async (name: string, email: string, password: string): Promise<void> => {
     try {
       setIsLoading(true);
-      const result = await authService.signup({ 
+      const result = await supabaseAuthService.signup({ 
         name, 
         email, 
         password, 
@@ -100,7 +135,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async (): Promise<void> => {
     try {
       setIsLoading(true);
-      await authService.logout();
+      await supabaseAuthService.logout();
       setUser(null);
     } catch (error) {
       const appError = ErrorHandler.mapError(error);
@@ -116,7 +151,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const refreshUser = async (): Promise<void> => {
     try {
       const currentUser = await RetryHandler.withRetry(
-        () => authService.getCurrentUser(),
+        () => supabaseAuthService.getCurrentUser(),
         1, // Max 1 retry for refresh
         1000 // 1s delay
       );

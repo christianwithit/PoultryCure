@@ -1,18 +1,17 @@
 import { EnhancedTextInput } from '@/components/EnhancedTextInput';
-import { storageManager } from '@/services/storage';
 import { AccessibilityUtils, KeyboardUtils, useAutoFocus } from '@/utils/formValidation';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { ErrorDisplay } from '../../components/ErrorDisplay';
 import { LoadingButton } from '../../components/LoadingButton';
@@ -69,18 +68,6 @@ export default function LoginScreen() {
 
   const navigateToForgotPassword = () => {
     router.push('/auth/forgot-password');
-  };
-
-  // Debug function to clear storage
-  const clearStorage = async () => {
-    try {
-      await storageManager.clearUserData();
-      setSuccessMessage('Storage cleared! You can now create a new account.');
-      setError(null);
-    } catch (error) {
-      const appError = ErrorHandler.mapError(error);
-      setError(appError);
-    }
   };
 
   return (
@@ -198,15 +185,6 @@ export default function LoginScreen() {
                 <Text style={styles.signupLink}>Sign Up</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Debug button - remove in production */}
-            <TouchableOpacity
-              style={styles.debugButton}
-              onPress={clearStorage}
-              disabled={isLoading}
-            >
-              <Text style={styles.debugButtonText}>Clear Storage (Debug)</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -276,20 +254,5 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
     lineHeight: FONT_SIZES.sm * LINE_HEIGHT.sm,
-  },
-  debugButton: {
-    marginTop: SPACING.xl,
-    padding: SPACING.sm,
-    backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignSelf: 'center',
-  },
-  debugButtonText: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: FONT_SIZES.xs * LINE_HEIGHT.sm,
   },
 });

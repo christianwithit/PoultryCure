@@ -14,7 +14,7 @@ import {
     View,
 } from 'react-native';
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SHADOWS, SPACING } from '../../constants/theme';
-import { authService } from '../../services/auth';
+import { supabaseAuthService } from '../../services/supabase-auth';
 
 interface ForgotPasswordFormData {
   email: string;
@@ -38,7 +38,7 @@ export default function ForgotPasswordScreen() {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
     try {
-      await authService.resetPassword(data.email);
+      await supabaseAuthService.resetPassword(data.email);
       setIsResetSent(true);
     } catch (error) {
       Alert.alert(
@@ -73,7 +73,7 @@ export default function ForgotPasswordScreen() {
               <Text style={styles.successIcon}>✓</Text>
               <Text style={styles.title}>Check Your Email</Text>
               <Text style={styles.subtitle}>
-                We've sent password reset instructions to:
+                If an account exists with this email, we've sent password reset instructions to:
               </Text>
               <Text style={styles.emailText}>{getValues('email')}</Text>
               
@@ -83,7 +83,7 @@ export default function ForgotPasswordScreen() {
                   1. Check your email inbox (and spam folder)
                 </Text>
                 <Text style={styles.instructionText}>
-                  2. Follow the instructions in the email
+                  2. Click the password reset link in the email
                 </Text>
                 <Text style={styles.instructionText}>
                   3. Create a new password
