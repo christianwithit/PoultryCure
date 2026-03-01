@@ -1,7 +1,30 @@
 // services/api.ts
 import Constants from 'expo-constants';
+import * as Crypto from 'expo-crypto';
 import { matchDisease } from '../data/disease';
 import { ApiResponse, DiagnosisResult } from '../types/types';
+
+// Generate UUID v4 for Supabase compatibility
+const generateUUID = (): string => {
+  const bytes = Crypto.getRandomBytes(16);
+  const hex = Array.from(bytes)
+    .map((b: number, i: number) => {
+      // Set version (4) and variant bits
+      const hexByte = b.toString(16).padStart(2, '0');
+      if (i === 6) return (parseInt(hexByte, 16) & 0x0f | 0x40).toString(16).padStart(2, '0');
+      if (i === 8) return (parseInt(hexByte, 16) & 0x3f | 0x80).toString(16).padStart(2, '0');
+      return hexByte;
+    })
+    .join('');
+  
+  return [
+    hex.substring(0, 8),
+    hex.substring(8, 12),
+    hex.substring(12, 16),
+    hex.substring(16, 20),
+    hex.substring(20, 32)
+  ].join('-');
+};
 
 // API key validation and security
 // Use Constants.expoConfig.extra for production builds, fallback to process.env for development
@@ -148,7 +171,7 @@ export class DiagnosisAPI {
       return {
         success: true,
         data: {
-          id: Date.now().toString(),
+          id: generateUUID(),
           type: 'symptom',
           input: symptoms,
           diagnosis: aiResult.diagnosis,
@@ -180,7 +203,7 @@ export class DiagnosisAPI {
       return {
         success: true,
         data: {
-          id: Date.now().toString(),
+          id: generateUUID(),
           type: 'image',
           input: 'Image analysis (forced fallback)',
           diagnosis: 'Image Analysis Unavailable (Fallback Mode)',
@@ -284,7 +307,7 @@ export class DiagnosisAPI {
       return {
         success: true,
         data: {
-          id: Date.now().toString(),
+          id: generateUUID(),
           type: 'image',
           input: 'Image analysis',
           diagnosis: aiResult.diagnosis,
@@ -306,7 +329,7 @@ export class DiagnosisAPI {
       return {
         success: true,
         data: {
-          id: Date.now().toString(),
+          id: generateUUID(),
           type: 'image',
           input: 'Image analysis (fallback)',
           diagnosis: 'Image Analysis Unavailable',
@@ -360,7 +383,7 @@ export class DiagnosisAPI {
       return {
         success: true,
         data: {
-          id: Date.now().toString(),
+          id: generateUUID(),
           type: 'symptom',
           input: symptoms,
           diagnosis: 'No Specific Disease Identified (Local Analysis)',

@@ -89,11 +89,10 @@ CREATE TRIGGER on_profile_updated
   EXECUTE FUNCTION public.handle_updated_at();
 
 -- ============================================================================
--- 6. OPTIONAL: CREATE DIAGNOSES TABLE (FOR FUTURE USE)
+-- 6. CREATE DIAGNOSES TABLE
 -- ============================================================================
--- Uncomment this section when you're ready to migrate diagnosis history to Supabase
+-- This table stores all diagnosis history for users
 
-/*
 CREATE TABLE IF NOT EXISTS public.diagnoses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -106,61 +105,105 @@ CREATE TABLE IF NOT EXISTS public.diagnoses (
   prevention TEXT,
   severity TEXT CHECK (severity IN ('low', 'moderate', 'high')),
   image_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Enable RLS
+-- ============================================================================
+-- 7. ENABLE ROW LEVEL SECURITY FOR DIAGNOSES
+-- ============================================================================
+
 ALTER TABLE public.diagnoses ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
+-- ============================================================================
+-- 8. CREATE RLS POLICIES FOR DIAGNOSES
+-- ============================================================================
+
+-- Policy: Users can view their own diagnoses
 CREATE POLICY "Users can view own diagnoses"
   ON public.diagnoses
   FOR SELECT
   USING (auth.uid() = user_id);
 
+-- Policy: Users can create their own diagnoses
 CREATE POLICY "Users can create own diagnoses"
   ON public.diagnoses
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+-- Policy: Users can update their own diagnoses
+CREATE POLICY "Users can update own diagnoses"
+  ON public.diagnoses
+  FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can delete their own diagnoses
 CREATE POLICY "Users can delete own diagnoses"
   ON public.diagnoses
   FOR DELETE
   USING (auth.uid() = user_id);
 
--- Index for faster queries
+-- ============================================================================
+-- 9. CREATE INDEXES FOR PERFORMANCE
+-- ============================================================================
+
 CREATE INDEX IF NOT EXISTS diagnoses_user_id_idx ON public.diagnoses(user_id);
 CREATE INDEX IF NOT EXISTS diagnoses_created_at_idx ON public.diagnoses(created_at DESC);
-*/
+CREATE INDEX IF NOT EXISTS diagnoses_type_idx ON public.diagnoses(type);
 
 -- ============================================================================
--- 7. VERIFY SETUP
+-- 10. CREATE TRIGGER FOR UPDATED_AT TIMESTAMP
 -- ============================================================================
 
--- Check if profiles table exists
+-- Trigger to automatically update updated_at on diagnosis changes
+DROP TRIGGER IF EXISTS on_diagnosis_updated ON public.diagnoses;
+CREATE TRIGGER on_diagnosis_updated
+  BEFORE UPDATE ON public.diagnoses
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+-- ============================================================================
+-- 11. VERIFY SETUP
+-- ============================================================================
+
+-- Check if tables exist
 SELECT EXISTS (
   SELECT FROM information_schema.tables 
   WHERE table_schema = 'public' 
   AND table_name = 'profiles'
 ) AS profiles_table_exists;
 
+SELECT EXISTS (
+  SELECT FROM information_schema.tables 
+  WHERE table_schema = 'public' 
+  AND table_name = 'diagnoses'
+) AS diagnoses_table_exists;
+
 -- Check if RLS is enabled
 SELECT tablename, rowsecurity 
 FROM pg_tables 
 WHERE schemaname = 'public' 
-AND tablename = 'profiles';
+AND tablename IN ('profiles', 'diagnoses');
 
 -- Check if policies exist
 SELECT policyname, tablename 
 FROM pg_policies 
 WHERE schemaname = 'public' 
-AND tablename = 'profiles';
+AND tablename IN ('profiles', 'diagnoses')
+ORDER BY tablename, policyname;
+
+-- Check if indexes exist
+SELECT indexname, tablename 
+FROM pg_indexes 
+WHERE schemaname = 'public' 
+AND tablename = 'diagnoses';
 
 -- ============================================================================
 -- SETUP COMPLETE!
 -- ============================================================================
--- Your Supabase database is now ready for PoultryCure authentication.
+-- Your Supabase database is now ready for PoultryCure.
 -- Next steps:
--- 1. Update your .env file with Supabase credentials
--- 2. Test signup and login in your app
--- 3. Verify profile creation in Supabase Table Editor
+-- 1. Run this SQL in your Supabase SQL Editor
+-- 2. Verify all tables and policies are created
+-- 3. Test the application with the new diagnoses table

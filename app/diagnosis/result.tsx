@@ -1,8 +1,11 @@
 // app/diagnosis/result.tsx
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+
 import {
+    ActivityIndicator,
     Image,
     ScrollView,
     Share,
@@ -14,20 +17,81 @@ import {
 import { BORDER_RADIUS, COLORS, FONT_SIZES, SHADOWS, SPACING } from '../../constants/theme';
 import { useDiagnosis } from '../../contexts/DiagnosisContext';
 import { DiagnosisResult as DiagnosisResultType } from '../../types/types';
+import { getDiagnosisById } from '../../services/supabase-diagnoses';
+
+const LAST_DIAGNOSIS_KEY = 'lastDiagnosis';
 
 export default function DiagnosisResult() {
+
   const { diagnosisId } = useLocalSearchParams<{ diagnosisId: string }>();
   const router = useRouter();
   const { history } = useDiagnosis();
   const [result, setResult] = useState<DiagnosisResultType | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (diagnosisId && history.length > 0) {
-      const foundResult = history.find((item) => item.id === diagnosisId);
-      if (foundResult) {
-        setResult(foundResult);
+    let isActive = true;
+
+    const fetchDiagnosis = async () => {
+      if (!diagnosisId) {
+        if (isActive) setIsLoading(false);
+        return;
       }
-    }
+
+      // First try to find in local history
+      const foundInHistory = history.find((item) => item.id === diagnosisId);
+      if (foundInHistory) {
+        if (isActive) {
+          setResult(foundInHistory);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      // If not found in history, fetch from Supabase
+      let resolved = false;
+      try {
+        const supabaseResult = await getDiagnosisById(diagnosisId);
+        if (supabaseResult) {
+          resolved = true;
+          if (isActive) {
+            setResult(supabaseResult);
+            setIsLoading(false);
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('Error fetching diagnosis from Supabase:', error);
+      }
+
+      // As a final fallback, load the cached last diagnosis
+      try {
+        const cached = await AsyncStorage.getItem(LAST_DIAGNOSIS_KEY);
+        if (cached) {
+          const parsed: DiagnosisResultType = JSON.parse(cached);
+          if (parsed.id === diagnosisId) {
+            resolved = true;
+            if (isActive) {
+              setResult(parsed);
+              setIsLoading(false);
+            }
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load cached diagnosis:', error);
+      }
+
+      if (isActive && !resolved) {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDiagnosis();
+
+    return () => {
+      isActive = false;
+    };
   }, [diagnosisId, history]);
 
   const getSeverityColor = (severity: string) => {
@@ -79,12 +143,21 @@ export default function DiagnosisResult() {
   };
 
   const goHome = () => {
-  (router as any).push('/(tabs)');
-};
+    (router as any).push('/(tabs)');
+  };
 
   const goToHistory = () => {
     router.push('/(tabs)/history');
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading diagnosis result...</Text>
+      </View>
+    );
+  }
 
   if (!result) {
     return (
@@ -466,6 +539,12 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     marginTop: SPACING.md,
     marginBottom: SPACING.xl,
+    textAlign: 'center',
+  },
+  loadingText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textLight,
+    marginTop: SPACING.md,
     textAlign: 'center',
   },
 });
